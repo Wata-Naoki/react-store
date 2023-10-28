@@ -35,6 +35,7 @@ export function Layout({
       <SearchAside />
       <MobileMenuAside menu={header.menu} />
       <Header header={header} cart={cart} isLoggedIn={isLoggedIn} />
+
       <main>{children}</main>
       <Suspense>
         <Await resolve={footer}>

@@ -39,12 +39,15 @@ export async function action({request, context}: ActionArgs) {
   }
 
   const form = await request.formData();
+
   const customerAccessToken = await session.get('customerAccessToken');
   if (!customerAccessToken) {
     return json({error: 'Unauthorized'}, {status: 401});
   }
 
   try {
+    console.log('Phone input:', form.get('phone'));
+
     const password = getPassword(form);
     const customer: CustomerUpdateInput = {};
     const validInputKeys = [
@@ -61,7 +64,19 @@ export async function action({request, context}: ActionArgs) {
       if (key === 'acceptsMarketing') {
         customer.acceptsMarketing = value === 'on';
       }
-      if (typeof value === 'string' && value.length) {
+      if (key === 'phone' && typeof value === 'string' && value.length) {
+        // E.164標準の正規表現（基本的なバージョン）
+        const e164Regex = /^\+\d{1,15}$/;
+
+        if (!e164Regex.test(value)) {
+          // 非E.164形式の場合、日本の国コード+81を追加
+          // また、先頭の0（市外局番の先頭）を削除
+          customer.phone =
+            '+81' + value.replace(/^0/, '').replace(/[^0-9]/g, '');
+        } else {
+          customer.phone = value;
+        }
+      } else if (typeof value === 'string' && value.length) {
         customer[key as (typeof validInputKeys)[number]] = value;
       }
     }
@@ -77,6 +92,14 @@ export async function action({request, context}: ActionArgs) {
         customer,
       },
     });
+
+    // errorの場合
+    if (updated.customerUpdate?.customerUserErrors?.length) {
+      return json(
+        {error: updated.customerUpdate?.customerUserErrors[0]},
+        {status: 400},
+      );
+    }
 
     // check for mutation errors
     if (updated.customerUpdate?.customerUserErrors?.length) {
